@@ -109,38 +109,59 @@ export function setupWebRTCSignaling(io) {
     });
 
     // Relay WebRTC Offer
-    socket.on('webrtc-offer', ({ targetUsername, offer }) => {
-      const targetSocketId = activeSockets.get(targetUsername?.toLowerCase());
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('webrtc-offer', {
+    socket.on('webrtc-offer', ({ targetUsername, targetUserId, targetSocketId, offer }) => {
+      const destSocketId = targetSocketId ||
+                           (targetUserId && userSocketMap.get(targetUserId)) ||
+                           (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
+      if (destSocketId) {
+        io.to(destSocketId).emit('webrtc-offer', {
           callerUsername: socket.username,
+          callerSocketId: socket.id,
           offer
         });
       }
     });
 
     // Relay WebRTC Answer
-    socket.on('webrtc-answer', ({ targetUsername, answer }) => {
-      const targetSocketId = activeSockets.get(targetUsername?.toLowerCase());
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('webrtc-answer', { answer });
+    socket.on('webrtc-answer', ({ targetUsername, targetUserId, targetSocketId, answer }) => {
+      const destSocketId = targetSocketId ||
+                           (targetUserId && userSocketMap.get(targetUserId)) ||
+                           (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
+      if (destSocketId) {
+        io.to(destSocketId).emit('webrtc-answer', {
+          answer,
+          responderSocketId: socket.id
+        });
       }
     });
 
     // Relay WebRTC ICE Candidates
-    socket.on('ice-candidate', ({ targetUsername, candidate }) => {
-      const targetSocketId = activeSockets.get(targetUsername?.toLowerCase());
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('ice-candidate', { candidate });
+    socket.on('ice-candidate', ({ targetUsername, targetUserId, targetSocketId, candidate }) => {
+      const destSocketId = targetSocketId ||
+                           (targetUserId && userSocketMap.get(targetUserId)) ||
+                           (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
+      if (destSocketId) {
+        io.to(destSocketId).emit('ice-candidate', { candidate });
+      }
+    });
+
+    // Relay Media Track Toggles (camera/mic mute status)
+    socket.on('toggle-media-track', ({ targetUsername, targetUserId, targetSocketId, type, isMuted }) => {
+      const destSocketId = targetSocketId ||
+                           (targetUserId && userSocketMap.get(targetUserId)) ||
+                           (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
+      if (destSocketId) {
+        io.to(destSocketId).emit('remote-media-toggled', { type, isMuted });
       }
     });
 
     // Relay End Call Event
-    socket.on('end-call', ({ targetUsername, targetUserId }) => {
-      const targetSocketId = (targetUserId && userSocketMap.get(targetUserId)) ||
-                             (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call-ended');
+    socket.on('end-call', ({ targetUsername, targetUserId, targetSocketId }) => {
+      const destSocketId = targetSocketId ||
+                           (targetUserId && userSocketMap.get(targetUserId)) ||
+                           (targetUsername && activeSockets.get(targetUsername.toLowerCase()));
+      if (destSocketId) {
+        io.to(destSocketId).emit('call-ended');
       }
     });
 
