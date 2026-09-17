@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  fullName  String
+  username  String   @unique
+  password  String?
+  avatar    String?
+  isOnline  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  memberships      ChatMember[]
+  sentMessages     Message[]    @relation("SentMessages")
+  receivedMessages Message[]    @relation("ReceivedMessages")
+  callerSessions   CallLog[]    @relation("CallerLogs")
+  receiverSessions CallLog[]    @relation("ReceiverLogs")
+}
+
+model Chat {
+  id              String   @id @default(uuid())
+  name            String?
+  isGroup         Boolean  @default(false)
+  lastMessageText String?
+  lastMessageTime DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members  ChatMember[]
+  messages Message[]
+}
+
+model ChatMember {
+  id       String   @id @default(uuid())
+  chatId   String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id            String   @id @default(uuid())
+  chatId        String?
+  senderId      String
+  receiverId    String?
+  text          String?
+  type          String   @default("text") // text, voice, image_grid
+  mediaUrl      String?
+  audioDuration String?
+  createdAt     DateTime @default(now())
+
+  chat     Chat? @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender   User  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User? @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model CallLog {
+  id         String   @id @default(uuid())
+  callerId   String
+  receiverId String
+  type       String   @default("video") // video, audio
+  status     String   @default("ended") // active, missed, ended
+  duration   Int      @default(0) // duration in seconds
+  createdAt  DateTime @default(now())
+
+  caller   User @relation("CallerLogs", fields: [callerId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceiverLogs", fields: [receiverId], references: [id], onDelete: Cascade)
+}
